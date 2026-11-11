@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pos-cloud
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pos-cloud-config
+  namespace: pos-cloud
+data:
+  APP_MODE: "CLOUD"
+  PORT: "8080"
+  DB_DRIVER: "postgres"
+  SYNC_BATCH_SIZE: "100"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pos-cloud-secrets
+  namespace: pos-cloud
+type: Opaque
+stringData:
+  DATABASE_URL: "postgres://postgres:securepassword@pos-postgres.pos-cloud.svc.cluster.local:5432/pos_central?sslmode=disable"
+  ED25519_PRIVATE_KEY: "REPLACE_WITH_BASE64_ED25519_PRIVATE_KEY"
+  ED25519_PUBLIC_KEY: "REPLACE_WITH_BASE64_ED25519_PUBLIC_KEY"
+  EDGE_AUTH_TOKEN: "pos-edge-shared-secret-key"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pos-cloud-engine
+  namespace: pos-cloud
+  labels:
+    app: pos-cloud-engine
+    tier: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pos-cloud-engine
+  template:
+    metadata:
+      labels:
+        app: pos-cloud-engine
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: pos-engine
+          image: pos-engine:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: pos-cloud-config
+            - secretRef:
+                name: pos-cloud-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pos-cloud-svc
+  namespace: pos-cloud
+spec:
+  type: ClusterIP
+  selector:
+    app: pos-cloud-engine
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pos-cloud-hpa
+  namespace: pos-cloud
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pos-cloud-engine
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

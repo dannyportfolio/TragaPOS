@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pos-edge
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pos-edge-sqlite-pvc
+  namespace: pos-edge
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pos-edge-config
+  namespace: pos-edge
+data:
+  APP_MODE: "EDGE"
+  PORT: "8081"
+  DB_DRIVER: "sqlite"
+  SQLITE_PATH: "/data/edge.db"
+  TENANT_ID: "tenant-park-01"
+  OUTLET_ID: "outlet-gate-north"
+  CLOUD_SYNC_URL: "https://cloud.pos.company.com"
+  SYNC_INTERVAL_SEC: "5"
+  SYNC_BATCH_SIZE: "50"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pos-edge-secrets
+  namespace: pos-edge
+type: Opaque
+stringData:
+  ED25519_PUBLIC_KEY: "REPLACE_WITH_BASE64_ED25519_PUBLIC_KEY"
+  EDGE_AUTH_TOKEN: "pos-edge-shared-secret-key"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pos-edge-engine
+  namespace: pos-edge
+  labels:
+    app: pos-edge-engine
+spec:
+  # CRITICAL: Recreate strategy with 1 replica ensures SQLite WAL mode single-writer safety
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pos-edge-engine
+  template:
+    metadata:
+      labels:
+        app: pos-edge-engine
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: pos-engine
+          image: pos-engine:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+          envFrom:
+            - configMapRef:
+                name: pos-edge-config
+            - secretRef:
+                name: pos-edge-secrets
+          volumeMounts:
+            - name: sqlite-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: sqlite-data
+          persistentVolumeClaim:
+            claimName: pos-edge-sqlite-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pos-edge-svc
+  namespace: pos-edge
+spec:
+  type: NodePort
+  selector:
+    app: pos-edge-engine
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+      nodePort: 30081
