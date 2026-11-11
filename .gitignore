@@ -1,0 +1,12 @@
+*.exe
+*.dll
+*.so
+*.dylib
+*.db
+*.db-wal
+*.db-shm
+*.log
+data/
+tmp/
+.vscode/
+.idea/
