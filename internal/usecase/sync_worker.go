@@ -8,18 +8,19 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"pos-engine/internal/config"
 	"pos-engine/internal/domain"
-	"pos-engine/internal/repository"
 )
 
 type SyncWorker struct {
 	cfg               *config.Config
-	txMgr             *repository.TxManager
+	txMgr             domain.TransactionManager
 	outboxRepo        domain.OutboxRepository
 	catalogRepo       domain.CatalogRepository
 	orderRepo         domain.OrderRepository
@@ -32,7 +33,7 @@ type SyncWorker struct {
 
 func NewSyncWorker(
 	cfg *config.Config,
-	txMgr *repository.TxManager,
+	txMgr domain.TransactionManager,
 	outboxRepo domain.OutboxRepository,
 	catalogRepo domain.CatalogRepository,
 	orderRepo domain.OrderRepository,
@@ -52,9 +53,6 @@ func NewSyncWorker(
 	}
 }
 
-// Start launches background syncing in EDGE mode:
-// 1. Upstream Pusher: pushes pending outbox batches to Cloud /v1/sync/push
-// 2. Downstream Puller: fetches updated catalog delta from Cloud /v1/sync/pull
 func (w *SyncWorker) Start(ctx context.Context) {
 	if w.cfg.AppMode != config.ModeEdge {
 		log.Println("[SyncWorker] Not running in EDGE mode, background sync worker disabled.")
@@ -91,12 +89,10 @@ func (w *SyncWorker) Stop() {
 }
 
 func (w *SyncWorker) syncCycle(ctx context.Context) {
-	// A. Push Upstream Transactional Events
 	if err := w.PushOutboxBatch(ctx); err != nil {
 		log.Printf("[SyncWorker] Push error: %v", err)
 	}
 
-	// B. Pull Downstream Master Data Delta
 	if err := w.PullCatalogDelta(ctx); err != nil {
 		log.Printf("[SyncWorker] Pull error: %v", err)
 	}
@@ -108,7 +104,7 @@ func (w *SyncWorker) PushOutboxBatch(ctx context.Context) error {
 		return fmt.Errorf("failed to fetch pending outbox: %w", err)
 	}
 	if len(batch) == 0 {
-		return nil // Nothing to push
+		return nil
 	}
 
 	idempotencyKey := fmt.Sprintf("push-%s-%d", w.cfg.OutletID, time.Now().UTC().UnixNano())
@@ -136,9 +132,7 @@ func (w *SyncWorker) PushOutboxBatch(ctx context.Context) error {
 
 	resp, err := w.httpClient.Do(req)
 	if err != nil {
-		for _, ev := range batch {
-			_ = w.outboxRepo.MarkFailed(ctx, ev.ID, err.Error())
-		}
+		w.markBatchFailed(ctx, batch, err.Error())
 		return fmt.Errorf("http push error: %w", err)
 	}
 	defer resp.Body.Close()
@@ -146,9 +140,7 @@ func (w *SyncWorker) PushOutboxBatch(ctx context.Context) error {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		respBody, _ := io.ReadAll(resp.Body)
 		errStr := fmt.Sprintf("cloud rejected batch (status %d): %s", resp.StatusCode, string(respBody))
-		for _, ev := range batch {
-			_ = w.outboxRepo.MarkFailed(ctx, ev.ID, errStr)
-		}
+		w.markBatchFailed(ctx, batch, errStr)
 		return errors.New(errStr)
 	}
 
@@ -165,6 +157,12 @@ func (w *SyncWorker) PushOutboxBatch(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (w *SyncWorker) markBatchFailed(ctx context.Context, batch []domain.SyncOutbox, errMsg string) {
+	for _, ev := range batch {
+		_ = w.outboxRepo.MarkFailed(ctx, ev.ID, errMsg)
+	}
 }
 
 func (w *SyncWorker) PullCatalogDelta(ctx context.Context) error {
@@ -216,11 +214,9 @@ func (w *SyncWorker) PullCatalogDelta(ctx context.Context) error {
 	return nil
 }
 
-// IngestUpstreamBatch processes incoming Edge sync batches on the Cloud server.
-// Enforces "Physical Reality Wins": paid offline sales are accepted even if stock is negative.
 func IngestUpstreamBatch(
 	ctx context.Context,
-	txMgr *repository.TxManager,
+	txMgr domain.TransactionManager,
 	catalogRepo domain.CatalogRepository,
 	orderRepo domain.OrderRepository,
 	ticketRepo domain.TicketRepository,
@@ -231,42 +227,52 @@ func IngestUpstreamBatch(
 
 	err := txMgr.WithTransaction(ctx, func(txCtx context.Context) error {
 		for _, event := range batch.Events {
+			var procErr error
 			switch event.EventType {
 			case domain.EventOrderCreated:
 				var order domain.Order
-				if err := json.Unmarshal(event.Payload, &order); err == nil {
-					_ = orderRepo.CreateOrder(txCtx, &order)
+				if procErr = json.Unmarshal(event.Payload, &order); procErr == nil {
+					procErr = orderRepo.CreateOrder(txCtx, &order)
 				}
 
 			case domain.EventPaymentReceived:
 				var payment domain.Payment
-				if err := json.Unmarshal(event.Payload, &payment); err == nil {
-					_ = orderRepo.AddPayment(txCtx, &payment)
+				if procErr = json.Unmarshal(event.Payload, &payment); procErr == nil {
+					procErr = orderRepo.AddPayment(txCtx, &payment)
 				}
 
 			case domain.EventStockMoved:
 				var mov domain.StockMovementEvent
-				if err := json.Unmarshal(event.Payload, &mov); err == nil {
-					// Physical Reality Wins: record stock movement directly
-					_ = catalogRepo.RecordStockMovement(txCtx, &mov)
-
-					// Check if stock became negative and flag alert
-					bal, _ := catalogRepo.GetStock(txCtx, mov.TenantID, mov.OutletID, mov.SKU)
-					if bal != nil && bal.OnHandQty < 0 {
-						discrepancies = append(discrepancies, domain.DiscrepancyNotice{
-							SKU:            mov.SKU,
-							RequestedDelta: mov.DeltaQty,
-							CurrentStock:   bal.OnHandQty,
-							Message:        fmt.Sprintf("PHYSICAL REALITY WINS: Stock for %s became negative (%v) due to paid offline order", mov.SKU, bal.OnHandQty),
-						})
+				if procErr = json.Unmarshal(event.Payload, &mov); procErr == nil {
+					procErr = catalogRepo.RecordStockMovement(txCtx, &mov)
+					if procErr == nil {
+						bal, balErr := catalogRepo.GetStock(txCtx, mov.TenantID, mov.OutletID, mov.SKU)
+						if balErr == nil && bal != nil && bal.OnHandQty < 0 {
+							discrepancies = append(discrepancies, domain.DiscrepancyNotice{
+								SKU:            mov.SKU,
+								RequestedDelta: mov.DeltaQty,
+								CurrentStock:   bal.OnHandQty,
+								Message:        fmt.Sprintf("PHYSICAL REALITY WINS: Stock for %s became negative (%v) due to paid offline order", mov.SKU, bal.OnHandQty),
+							})
+						}
 					}
 				}
 
 			case domain.EventTicketRedeemed:
 				var red domain.TicketRedemption
-				if err := json.Unmarshal(event.Payload, &red); err == nil {
-					_ = ticketRepo.RecordRedemption(txCtx, &red)
+				if procErr = json.Unmarshal(event.Payload, &red); procErr == nil {
+					procErr = ticketRepo.RecordRedemption(txCtx, &red)
 				}
+			}
+
+			if procErr != nil {
+				if isIdempotentConflictErr(procErr) {
+					slog.Warn("sync_event_duplicate_ignored", "event_id", event.ID, "event_type", event.EventType, "error", procErr)
+					ackIDs = append(ackIDs, event.ID)
+					continue
+				}
+				slog.Error("sync_event_ingest_failed", "event_id", event.ID, "event_type", event.EventType, "error", procErr)
+				return fmt.Errorf("ingest event %s (%s): %w", event.ID, event.EventType, procErr)
 			}
 
 			ackIDs = append(ackIDs, event.ID)
@@ -283,4 +289,14 @@ func IngestUpstreamBatch(
 		AckEventIDs:    ackIDs,
 		Discrepancies:  discrepancies,
 	}, nil
+}
+
+func isIdempotentConflictErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "already exists")
 }

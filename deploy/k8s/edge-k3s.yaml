@@ -40,7 +40,7 @@ metadata:
 type: Opaque
 stringData:
   ED25519_PUBLIC_KEY: "REPLACE_WITH_BASE64_ED25519_PUBLIC_KEY"
-  EDGE_AUTH_TOKEN: "pos-edge-shared-secret-key"
+  EDGE_AUTH_TOKEN: "REPLACE_WITH_SECURE_EDGE_AUTH_TOKEN"
 ---
 apiVersion: apps/v1
 kind: Deployment

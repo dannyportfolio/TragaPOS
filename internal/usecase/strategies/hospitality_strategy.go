@@ -49,7 +49,6 @@ func (s *HospitalityStrategy) ProcessFulfillment(
 	item *domain.Item,
 	orderItem *domain.OrderItem,
 ) ([]domain.StockMovementEvent, error) {
-	// Facility or night deduction
 	return []domain.StockMovementEvent{
 		{
 			ID:          uid.NewV7(),

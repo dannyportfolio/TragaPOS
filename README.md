@@ -61,34 +61,55 @@ A single sellable items catalog (`items` table + `sector_traits` JSON) driven by
 
 ---
 
+## Documentation & Architecture Guides
+
+Detailed documentation, architecture diagrams, API contracts, and domain specifications are organized in the [`docs/`](file:///docs) directory:
+- [Architecture & Layers](file:///docs/architecture.md)
+- [API Reference & Contracts](file:///docs/api_reference.md)
+- [Domain Models & Sector Fulfillment Strategies](file:///docs/domain_and_strategies.md)
+- [Database & Migrations Guide](file:///docs/database_and_migrations.md)
+- [Clean Code Standards & Engineering Policies](file:///docs/clean_code_standards.md)
+
+---
+
 ## Directory Structure
 
 ```text
 pos-engine/
 ├── cmd/
 │   └── server/
-│       └── main.go                 # Entrypoint with APP_MODE switcher & Graceful Shutdown
+│       └── main.go                 # Lean Composition Root & Graceful Shutdown
+├── docs/                           # Dedicated documentation directory
+│   ├── architecture.md
+│   ├── api_reference.md
+│   ├── domain_and_strategies.md
+│   ├── database_and_migrations.md
+│   └── clean_code_standards.md
 ├── internal/
-│   ├── config/                     # Env loader (APP_MODE=CLOUD|EDGE, DB_DSN, Keys)
-│   ├── domain/                     # Entities, Value Objects, Strategy & Repo Interfaces
-│   │   ├── catalog.go              # Polymorphic Item & Sector Traits
-│   │   ├── order.go                # Order, Folio, & Payment entities
-│   │   ├── ticket.go               # Ed25519 Ticket payload & interfaces
-│   │   └── sync.go                 # Outbox & Delta Sync interfaces
+│   ├── config/                     # Environment configuration loader
+│   ├── database/                   # DB connection setup & migration runner
+│   ├── domain/                     # Entities, Value Objects, Repository & TxManager Interfaces
+│   │   ├── catalog.go
+│   │   ├── order.go
+│   │   ├── sync.go
+│   │   ├── ticket.go
+│   │   └── tx.go                   # TransactionManager abstraction
 │   ├── usecase/                    # Clean Architecture Application Logic
+│   │   ├── catalog_uc.go           # Catalog querying and upserting usecase
 │   │   ├── checkout_uc.go          # Unified checkout with Strategy hooks + Outbox
+│   │   ├── order_uc.go             # Order and Folio management usecase
 │   │   ├── ticket_uc.go            # Cloud Sign & Edge Offline Verify/Redeem
-│   │   ├── sync_worker.go          # Background Outbox Pusher & Master Data Puller
+│   │   ├── sync_worker.go          # Background Outbox Pusher & Delta Puller
 │   │   └── strategies/             # F&B, Retail, Tourism, Hospitality implementations
 │   ├── repository/                 # SQL implementations (PostgreSQL & SQLite compatible)
-│   │   ├── db_tx.go                # Atomic Transaction Manager (WithTx)
+│   │   ├── db_tx.go                # Atomic Transaction Manager
 │   │   ├── catalog_repo.go
 │   │   ├── order_repo.go
 │   │   ├── ticket_repo.go
 │   │   └── outbox_repo.go
 │   ├── delivery/
 │   │   ├── http/                   # REST Handlers, Idempotency Middleware, Router
-│   │   └── ws/                     # Real-time WebSocket/SSE Hub for KDS & Gate
+│   │   └── ws/                     # Real-time WebSocket Hub for KDS & Gate
 │   └── pkg/
 │       ├── crypto/                 # Ed25519 Keygen, Signer, Verifier
 │       └── uid/                    # UUIDv7 Generator wrapper
@@ -99,7 +120,7 @@ pos-engine/
 │   ├── Dockerfile                  # Multi-stage Distroless build (CGO_ENABLED=0)
 │   └── k8s/
 │       ├── cloud-deployment.yaml   # Cloud K8s + HPA
-│       └── edge-k3s.yaml           # Edge K3s + PVC (Recreate strategy)
+│       └── edge-k3s.yaml           # Edge K3s + PVC
 └── go.mod
 ```
 

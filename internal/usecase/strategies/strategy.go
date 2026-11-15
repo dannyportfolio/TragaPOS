@@ -11,7 +11,6 @@ type ExecutionContext struct {
 	OrderID  string
 }
 
-// FulfillmentStrategy defines the sector-specific validation and fulfillment lifecycle.
 type FulfillmentStrategy interface {
 	Sector() domain.ItemSector
 	ValidateAndPriceItem(ctx context.Context, item *domain.Item, orderItem *domain.OrderItem) error

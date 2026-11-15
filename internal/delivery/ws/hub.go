@@ -8,14 +8,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for POS LAN & local kiosk hardware
-	},
-}
-
 type EventMessage struct {
-	Topic   string `json:"topic"` // e.g. "kds", "gate", "order", "qris"
+	Topic   string `json:"topic"`
 	Event   string `json:"event"`
 	Payload any    `json:"payload"`
 }
@@ -28,11 +22,12 @@ type Client struct {
 }
 
 type Hub struct {
-	mu         sync.RWMutex
-	clients    map[*Client]bool
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
+	mu             sync.RWMutex
+	clients        map[*Client]bool
+	broadcast      chan []byte
+	register       chan *Client
+	unregister     chan *Client
+	allowedOrigins []string
 }
 
 func NewHub() *Hub {
@@ -42,6 +37,29 @@ func NewHub() *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
+}
+
+func (h *Hub) SetAllowedOrigins(origins []string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.allowedOrigins = origins
+}
+
+func (h *Hub) isOriginAllowed(r *http.Request) bool {
+	h.mu.RLock()
+	origins := h.allowedOrigins
+	h.mu.RUnlock()
+
+	if len(origins) == 0 {
+		return true
+	}
+	reqOrigin := r.Header.Get("Origin")
+	for _, allowed := range origins {
+		if allowed == "*" || allowed == reqOrigin {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Hub) Run() {
@@ -88,7 +106,10 @@ func (h *Hub) BroadcastEvent(topic, event string, payload any) {
 }
 
 func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
+	wsUpgrader := websocket.Upgrader{
+		CheckOrigin: h.isOriginAllowed,
+	}
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
@@ -103,7 +124,6 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	h.register <- client
 
-	// Start pump routines
 	go client.writePump()
 	go client.readPump()
 }
@@ -115,7 +135,6 @@ func (c *Client) readPump() {
 	}()
 
 	for {
-		// Read message; could handle incoming gate turnstile signals or KDS bump actions
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			break

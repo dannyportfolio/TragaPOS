@@ -127,7 +127,7 @@ func (r *CatalogRepo) ListItems(ctx context.Context, tenantID string, limit, off
 		SELECT id, tenant_id, outlet_id, sku, barcode, name, sector, base_price,
 		       currency, tax_rate, sector_traits, version, is_active, created_at, updated_at
 		FROM items
-		WHERE tenant_id = ?
+		WHERE tenant_id = ? AND is_active
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`)
@@ -203,7 +203,6 @@ func (r *CatalogRepo) UpsertItem(ctx context.Context, item *domain.Item) error {
 	}
 	item.UpdatedAt = now
 
-	// Compatible upsert across SQLite and PostgreSQL
 	var query string
 	if r.txMgr.Driver() == "postgres" {
 		query = `
@@ -252,6 +251,25 @@ func (r *CatalogRepo) UpsertItem(ctx context.Context, item *domain.Item) error {
 	return nil
 }
 
+func (r *CatalogRepo) DeleteItem(ctx context.Context, tenantID, id string) error {
+	now := time.Now().UTC()
+	version := now.UnixNano()
+	query := r.rebind(`
+		UPDATE items
+		SET is_active = ?, version = ?, updated_at = ?
+		WHERE id = ? AND tenant_id = ?
+	`)
+	res, err := r.exec(ctx).ExecContext(ctx, query, false, version, formatSQLTime(now), id, tenantID)
+	if err != nil {
+		return fmt.Errorf("failed to delete item: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err == nil && rows == 0 {
+		return domain.ErrItemNotFound
+	}
+	return nil
+}
+
 func (r *CatalogRepo) GetStock(ctx context.Context, tenantID, outletID, sku string) (*domain.InventoryBalance, error) {
 	query := r.rebind(`
 		SELECT tenant_id, outlet_id, sku, on_hand_qty, allocated_qty, updated_at
@@ -266,7 +284,6 @@ func (r *CatalogRepo) GetStock(ctx context.Context, tenantID, outletID, sku stri
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// Zero balance placeholder if not yet tracked
 			return &domain.InventoryBalance{
 				TenantID:     tenantID,
 				OutletID:     outletID,
@@ -288,7 +305,6 @@ func (r *CatalogRepo) RecordStockMovement(ctx context.Context, event *domain.Sto
 		event.CreatedAt = now
 	}
 
-	// 1. Insert Movement Event
 	insertEventQ := r.rebind(`
 		INSERT INTO stock_movements (id, tenant_id, outlet_id, sku, delta_qty, reason, reference_id, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -302,7 +318,6 @@ func (r *CatalogRepo) RecordStockMovement(ctx context.Context, event *domain.Sto
 		return fmt.Errorf("failed to record stock movement: %w", err)
 	}
 
-	// 2. Upsert Inventory Balance with delta
 	var updateBalQ string
 	if r.txMgr.Driver() == "postgres" {
 		updateBalQ = `
@@ -333,7 +348,6 @@ func (r *CatalogRepo) RecordStockMovement(ctx context.Context, event *domain.Sto
 	return nil
 }
 
-// Helpers for cross-database date formatting
 func formatSQLTime(t time.Time) string {
 	return t.UTC().Format("2006-01-02 15:04:05.000000")
 }

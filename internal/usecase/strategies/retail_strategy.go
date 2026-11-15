@@ -31,7 +31,6 @@ func (s *RetailStrategy) ValidateAndPriceItem(ctx context.Context, item *domain.
 	unitPrice := item.BasePrice
 	multiplier := 1.0
 
-	// 1. Resolve Multi-UOM if specified
 	if orderItem.UOM != "" && trait.BaseUOM != "" && !strings.EqualFold(orderItem.UOM, trait.BaseUOM) {
 		matched := false
 		for _, conv := range trait.UOMConversions {
@@ -56,11 +55,9 @@ func (s *RetailStrategy) ValidateAndPriceItem(ctx context.Context, item *domain.
 		}
 	}
 
-	// 2. Resolve Wholesale Tiered Pricing
 	intQty := int(orderItem.Quantity)
 	for _, tier := range trait.TieredPricings {
 		if intQty >= tier.MinQuantity && tier.UnitPrice > 0 {
-			// Higher tier overrides base/conversion price
 			unitPrice = tier.UnitPrice
 		}
 	}
@@ -70,7 +67,6 @@ func (s *RetailStrategy) ValidateAndPriceItem(ctx context.Context, item *domain.
 	orderItem.TaxAmount = int64(float64(orderItem.Subtotal) * item.TaxRate)
 	orderItem.TotalAmount = orderItem.Subtotal + orderItem.TaxAmount
 
-	// Record multiplier in payload for fulfillment stock deduction
 	payloadData, _ := json.Marshal(map[string]any{
 		"uom_multiplier": multiplier,
 		"base_uom":       trait.BaseUOM,

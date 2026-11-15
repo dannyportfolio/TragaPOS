@@ -35,7 +35,7 @@ func (s *TourismStrategy) ValidateAndPriceItem(ctx context.Context, item *domain
 
 	hours := trait.ValidDurationHours
 	if hours <= 0 {
-		hours = 24 // default 24h pass
+		hours = 24
 	}
 	validUntil := time.Now().UTC().Add(time.Duration(hours) * time.Hour).Unix()
 	pax := trait.PaxPerTicket
@@ -60,7 +60,6 @@ func (s *TourismStrategy) ProcessFulfillment(
 	item *domain.Item,
 	orderItem *domain.OrderItem,
 ) ([]domain.StockMovementEvent, error) {
-	// Tourism passes typically deduct pass quota or increment attendance tracking
 	return []domain.StockMovementEvent{
 		{
 			ID:          uid.NewV7(),

@@ -10,7 +10,6 @@ import (
 
 type txKey struct{}
 
-// DBTX is the common interface satisfied by both *sql.DB and *sql.Tx.
 type DBTX interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
@@ -38,10 +37,7 @@ func (m *TxManager) Driver() string {
 	return m.driver
 }
 
-// WithTransaction runs the given function inside a database transaction.
-// If fn returns an error, the transaction is rolled back; otherwise committed.
 func (m *TxManager) WithTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
-	// If already in a transaction, reuse it (nested transaction boundary)
 	if _, ok := ctx.Value(txKey{}).(*sql.Tx); ok {
 		return fn(ctx)
 	}
@@ -76,7 +72,6 @@ func (m *TxManager) WithTransaction(ctx context.Context, fn func(ctx context.Con
 	return nil
 }
 
-// GetExecutor extracts the active *sql.Tx from context, or falls back to *sql.DB.
 func (m *TxManager) GetExecutor(ctx context.Context) DBTX {
 	if tx, ok := ctx.Value(txKey{}).(*sql.Tx); ok && tx != nil {
 		return tx
@@ -84,7 +79,6 @@ func (m *TxManager) GetExecutor(ctx context.Context) DBTX {
 	return m.db
 }
 
-// Rebind adapts standard '?' placeholders to PostgreSQL '$1, $2, ...' placeholders if needed.
 func Rebind(driver string, query string) string {
 	if driver != "postgres" {
 		return query

@@ -1,0 +1,135 @@
+services:
+  # ============================================================================
+  # Master Relational Database for Cloud Runtime
+  # ============================================================================
+  pos-postgres:
+    image: postgres:16-alpine
+    container_name: pos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-pos_central}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-pos_central}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - pos-network
+
+  # ============================================================================
+  # Central Hub / Cloud Service Engine (Port 8080)
+  # ============================================================================
+  pos-cloud:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    image: pos-cloud:latest
+    container_name: pos-cloud
+    restart: unless-stopped
+    depends_on:
+      pos-postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      APP_MODE: "CLOUD"
+      PORT: "8080"
+      DB_DRIVER: "postgres"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pos-postgres:5432/${POSTGRES_DB:-pos_central}?sslmode=disable"
+      ED25519_PRIVATE_KEY: "${ED25519_PRIVATE_KEY}"
+      ED25519_PUBLIC_KEY: "${ED25519_PUBLIC_KEY}"
+      EDGE_AUTH_TOKEN: "${EDGE_AUTH_TOKEN}"
+      API_AUTH_TOKEN: "${API_AUTH_TOKEN:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+      SYNC_BATCH_SIZE: "${SYNC_BATCH_SIZE:-100}"
+    ports:
+      - "${CLOUD_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "/app/healthcheck", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - pos-network
+
+  # ============================================================================
+  # Local Outlet / Edge Service Engine (Port 8081)
+  # ============================================================================
+  pos-edge:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    image: pos-edge:latest
+    container_name: pos-edge
+    restart: unless-stopped
+    depends_on:
+      pos-cloud:
+        condition: service_healthy
+    environment:
+      APP_ENV: "${APP_ENV:-development}"
+      APP_MODE: "EDGE"
+      PORT: "8081"
+      DB_DRIVER: "sqlite"
+      SQLITE_PATH: "/data/edge.db"
+      TENANT_ID: "${TENANT_ID:-tenant-park-01}"
+      OUTLET_ID: "${OUTLET_ID:-outlet-gate-north}"
+      CLOUD_SYNC_URL: "http://pos-cloud:8080"
+      SYNC_INTERVAL_SEC: "${SYNC_INTERVAL_SEC:-5}"
+      SYNC_BATCH_SIZE: "50"
+      ED25519_PUBLIC_KEY: "${ED25519_PUBLIC_KEY}"
+      EDGE_AUTH_TOKEN: "${EDGE_AUTH_TOKEN}"
+      API_AUTH_TOKEN: "${API_AUTH_TOKEN:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+    ports:
+      - "${EDGE_PORT:-8081}:8081"
+    volumes:
+      - edge_sqlite_data:/data
+    healthcheck:
+      test: ["CMD", "/app/healthcheck", "http://127.0.0.1:8081/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - pos-network
+
+  # ============================================================================
+  # Front-of-House Web POS & KDS Dashboard (Port 3000)
+  # ============================================================================
+  pos-web:
+    build:
+      context: web
+      dockerfile: Dockerfile
+    image: pos-web:latest
+    container_name: pos-web
+    restart: unless-stopped
+    depends_on:
+      pos-edge:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - pos-network
+
+volumes:
+  postgres_data:
+    driver: local
+  edge_sqlite_data:
+    driver: local
+
+networks:
+  pos-network:
+    driver: bridge

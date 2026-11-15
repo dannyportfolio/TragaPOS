@@ -15,7 +15,6 @@ func TestEd25519SignAndVerify(t *testing.T) {
 
 	payload := []byte("TICKET_ID_123|TENANT_PARK|VIP|1|1731300000|1731200000")
 
-	// Sign with Cloud Private Key
 	sig, err := crypto.Sign(privKey, payload)
 	if err != nil {
 		t.Fatalf("failed to sign payload: %v", err)
@@ -24,20 +23,17 @@ func TestEd25519SignAndVerify(t *testing.T) {
 		t.Fatal("expected non-empty signature")
 	}
 
-	// Verify with Edge Public Key (100% offline mathematical check)
 	err = crypto.Verify(pubKey, payload, sig)
 	if err != nil {
 		t.Fatalf("signature verification failed: %v", err)
 	}
 
-	// Tampered payload test
 	tamperedPayload := []byte("TICKET_ID_123|TENANT_PARK|VIP|99|1731300000|1731200000")
 	err = crypto.Verify(pubKey, tamperedPayload, sig)
 	if err == nil {
 		t.Fatal("expected verification failure on tampered payload, but got nil")
 	}
 
-	// Different keypair test
 	pubKey2, _, _ := crypto.GenerateKeyPair()
 	err = crypto.Verify(pubKey2, payload, sig)
 	if err == nil {

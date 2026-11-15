@@ -140,3 +140,34 @@ CREATE TABLE IF NOT EXISTS redeemed_tickets (
     device_id VARCHAR(64),
     CONSTRAINT uq_ticket_redemption UNIQUE (tenant_id, ticket_id)
 );
+
+-- Shift & Cash Drawer Sessions
+CREATE TABLE IF NOT EXISTS shift_sessions (
+    id VARCHAR(36) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL,
+    outlet_id VARCHAR(64) NOT NULL,
+    cashier_id VARCHAR(64) NOT NULL,
+    cashier_name VARCHAR(255) NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'OPEN',
+    opening_float BIGINT NOT NULL DEFAULT 0,
+    expected_cash BIGINT NOT NULL DEFAULT 0,
+    actual_cash BIGINT NOT NULL DEFAULT 0,
+    variance BIGINT NOT NULL DEFAULT 0,
+    notes TEXT,
+    opened_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_shift_active ON shift_sessions (tenant_id, outlet_id, cashier_id, status);
+
+CREATE TABLE IF NOT EXISTS cash_movements (
+    id VARCHAR(36) PRIMARY KEY,
+    shift_id VARCHAR(36) NOT NULL REFERENCES shift_sessions(id) ON DELETE CASCADE,
+    type VARCHAR(32) NOT NULL,
+    amount BIGINT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_movements_shift ON cash_movements (shift_id, created_at ASC);
+

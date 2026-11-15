@@ -24,7 +24,7 @@ stringData:
   DATABASE_URL: "postgres://postgres:securepassword@pos-postgres.pos-cloud.svc.cluster.local:5432/pos_central?sslmode=disable"
   ED25519_PRIVATE_KEY: "REPLACE_WITH_BASE64_ED25519_PRIVATE_KEY"
   ED25519_PUBLIC_KEY: "REPLACE_WITH_BASE64_ED25519_PUBLIC_KEY"
-  EDGE_AUTH_TOKEN: "pos-edge-shared-secret-key"
+  EDGE_AUTH_TOKEN: "REPLACE_WITH_SECURE_EDGE_AUTH_TOKEN"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -119,3 +119,56 @@ spec:
         target:
           type: Utilization
           averageUtilization: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pos-postgres
+  namespace: pos-cloud
+  labels:
+    app: pos-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pos-postgres
+  template:
+    metadata:
+      labels:
+        app: pos-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "securepassword"
+            - name: POSTGRES_DB
+              value: "pos_central"
+          ports:
+            - containerPort: 5432
+              name: postgres
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pos-postgres
+  namespace: pos-cloud
+spec:
+  type: ClusterIP
+  selector:
+    app: pos-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+

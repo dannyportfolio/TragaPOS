@@ -10,3 +10,11 @@ data/
 tmp/
 .vscode/
 .idea/
+.env
+.env.*
+!.env.example
+node_modules/
+web/dist/
+.vite-temp/
+
+

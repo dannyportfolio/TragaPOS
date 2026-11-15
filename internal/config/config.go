@@ -17,18 +17,21 @@ const (
 )
 
 type Config struct {
-	AppMode          AppMode
-	Port             int
-	DBDriver         string // "postgres" or "sqlite"
-	DBDSN            string
-	Ed25519PrivKey   string // Required in CLOUD mode
-	Ed25519PubKey    string // Required in EDGE mode (optional in CLOUD mode for local verify)
-	CloudSyncURL     string // Target URL for Edge sync push/pull (e.g. http://cloud:8080)
-	SyncInterval     time.Duration
-	TenantID         string
-	OutletID         string
-	SyncBatchSize    int
-	EdgeAuthToken    string // Edge bearer token to authenticate with Cloud Sync API
+	AppEnv         string
+	AppMode        AppMode
+	Port           int
+	DBDriver       string
+	DBDSN          string
+	Ed25519PrivKey string
+	Ed25519PubKey  string
+	CloudSyncURL   string
+	SyncInterval   time.Duration
+	TenantID       string
+	OutletID       string
+	SyncBatchSize  int
+	EdgeAuthToken  string
+	APIAuthToken   string
+	AllowedOrigins []string
 }
 
 func Load() (*Config, error) {
@@ -70,11 +73,6 @@ func Load() (*Config, error) {
 	privKey := getEnv("ED25519_PRIVATE_KEY", "")
 	pubKey := getEnv("ED25519_PUBLIC_KEY", "")
 
-	if appMode == ModeCloud && privKey == "" {
-		// In development or when unconfigured, warn or fallback to generate
-		// Production validation will enforce non-empty if strictly required
-	}
-
 	syncIntervalSec, err := strconv.Atoi(getEnv("SYNC_INTERVAL_SEC", "5"))
 	if err != nil || syncIntervalSec <= 0 {
 		syncIntervalSec = 5
@@ -85,7 +83,19 @@ func Load() (*Config, error) {
 		batchSize = 50
 	}
 
+	appEnv := strings.ToLower(getEnv("APP_ENV", "development"))
+
+	var allowedOrigins []string
+	if rawOrigins := getEnv("ALLOWED_ORIGINS", ""); rawOrigins != "" {
+		for _, o := range strings.Split(rawOrigins, ",") {
+			if trimmed := strings.TrimSpace(o); trimmed != "" {
+				allowedOrigins = append(allowedOrigins, trimmed)
+			}
+		}
+	}
+
 	cfg := &Config{
+		AppEnv:         appEnv,
 		AppMode:        appMode,
 		Port:           port,
 		DBDriver:       dbDriver,
@@ -97,7 +107,9 @@ func Load() (*Config, error) {
 		TenantID:       getEnv("TENANT_ID", "tenant-default"),
 		OutletID:       getEnv("OUTLET_ID", "outlet-default"),
 		SyncBatchSize:  batchSize,
-		EdgeAuthToken:  getEnv("EDGE_AUTH_TOKEN", "pos-edge-secret-token"),
+		EdgeAuthToken:  getEnv("EDGE_AUTH_TOKEN", ""),
+		APIAuthToken:   getEnv("API_AUTH_TOKEN", ""),
+		AllowedOrigins: allowedOrigins,
 	}
 
 	return cfg, cfg.Validate()
@@ -107,6 +119,14 @@ func (c *Config) Validate() error {
 	if c.AppMode == ModeCloud {
 		if c.DBDriver != "postgres" {
 			return errors.New("CLOUD mode requires 'postgres' DBDriver")
+		}
+		if c.AppEnv == "production" {
+			if c.Ed25519PrivKey == "" {
+				return errors.New("CLOUD mode in production requires ED25519_PRIVATE_KEY")
+			}
+			if c.EdgeAuthToken == "" {
+				return errors.New("CLOUD mode in production requires EDGE_AUTH_TOKEN")
+			}
 		}
 	} else if c.AppMode == ModeEdge {
 		if c.DBDriver != "sqlite" {

@@ -156,3 +156,34 @@ CREATE TABLE IF NOT EXISTS sync_outbox (
 );
 
 CREATE INDEX IF NOT EXISTS idx_outbox_pending ON sync_outbox (status, retry_count, created_at ASC);
+
+-- Shift & Cash Drawer Sessions
+CREATE TABLE IF NOT EXISTS shift_sessions (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    outlet_id TEXT NOT NULL,
+    cashier_id TEXT NOT NULL,
+    cashier_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'OPEN',
+    opening_float INTEGER NOT NULL DEFAULT 0,
+    expected_cash INTEGER NOT NULL DEFAULT 0,
+    actual_cash INTEGER NOT NULL DEFAULT 0,
+    variance INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    opened_at TEXT NOT NULL,
+    closed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_shift_active ON shift_sessions (tenant_id, outlet_id, cashier_id, status);
+
+CREATE TABLE IF NOT EXISTS cash_movements (
+    id TEXT PRIMARY KEY,
+    shift_id TEXT NOT NULL REFERENCES shift_sessions(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_movements_shift ON cash_movements (shift_id, created_at ASC);
+

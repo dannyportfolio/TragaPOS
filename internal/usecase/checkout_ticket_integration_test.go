@@ -112,7 +112,6 @@ func TestCheckout_FulfillmentAndOutbox(t *testing.T) {
 		cfg, txMgr, catalogRepo, orderRepo, outboxRepo, reg, broadcaster,
 	)
 
-	// Seed item: Coffee with Espresso Beans BOM
 	fbTrait := domain.FBTrait{
 		KitchenStation: "BAR",
 		Recipe: []domain.RecipeIngredient{
@@ -137,7 +136,6 @@ func TestCheckout_FulfillmentAndOutbox(t *testing.T) {
 		t.Fatalf("failed to seed item: %v", err)
 	}
 
-	// Execute Checkout with Cash Payment
 	req := usecase.CheckoutRequest{
 		TenantID: cfg.TenantID,
 		OutletID: cfg.OutletID,
@@ -146,7 +144,7 @@ func TestCheckout_FulfillmentAndOutbox(t *testing.T) {
 		},
 		Payment: &usecase.PaymentInput{
 			Method: domain.PaymentMethodCash,
-			Amount: 60000, // 2 * 25k = 50k + 10% tax = 55,000 total
+			Amount: 60000,
 		},
 	}
 
@@ -162,7 +160,6 @@ func TestCheckout_FulfillmentAndOutbox(t *testing.T) {
 		t.Errorf("expected total amount 55000, got %d", order.TotalAmount)
 	}
 
-	// Verify stock movement: -40g of RAW_BEANS_G
 	bal, err := catalogRepo.GetStock(ctx, cfg.TenantID, cfg.OutletID, "RAW_BEANS_G")
 	if err != nil {
 		t.Fatalf("GetStock failed: %v", err)
@@ -171,7 +168,6 @@ func TestCheckout_FulfillmentAndOutbox(t *testing.T) {
 		t.Errorf("expected on_hand_qty -40, got %v", bal.OnHandQty)
 	}
 
-	// Verify transactional outbox enqueued records
 	outboxItems, err := outboxRepo.FetchPendingBatch(ctx, 10)
 	if err != nil {
 		t.Fatalf("FetchPendingBatch failed: %v", err)
@@ -202,7 +198,6 @@ func TestHospitalityFolioCharge(t *testing.T) {
 		cfg, txMgr, catalogRepo, orderRepo, outboxRepo, reg, broadcaster,
 	)
 
-	// Create guest folio for Room 101
 	folio := &domain.GuestFolio{
 		ID:           uid.NewV7(),
 		TenantID:     cfg.TenantID,
@@ -219,7 +214,6 @@ func TestHospitalityFolioCharge(t *testing.T) {
 		t.Fatalf("failed to create folio: %v", err)
 	}
 
-	// Seed catalog item
 	item := &domain.Item{
 		ID:        uid.NewV7(),
 		TenantID:  cfg.TenantID,
@@ -232,7 +226,6 @@ func TestHospitalityFolioCharge(t *testing.T) {
 	}
 	_ = catalogRepo.UpsertItem(ctx, item)
 
-	// Checkout charging to Room 101
 	req := usecase.CheckoutRequest{
 		TenantID: cfg.TenantID,
 		OutletID: cfg.OutletID,
@@ -255,7 +248,6 @@ func TestHospitalityFolioCharge(t *testing.T) {
 		t.Errorf("expected order status PAID, got %s", order.Status)
 	}
 
-	// Verify updated folio balance
 	updatedFolio, err := orderRepo.GetFolioByRoom(ctx, cfg.TenantID, "101")
 	if err != nil {
 		t.Fatalf("GetFolioByRoom failed: %v", err)
@@ -279,7 +271,6 @@ func TestCryptographicOfflineTicketingAndRedemption(t *testing.T) {
 		t.Fatalf("failed to generate keypair: %v", err)
 	}
 
-	// 1. Cloud Mode Setup (Ticket Issuer)
 	cloudCfg := &config.Config{
 		AppMode:        config.ModeCloud,
 		TenantID:       "park-central",
@@ -301,16 +292,14 @@ func TestCryptographicOfflineTicketingAndRedemption(t *testing.T) {
 		t.Fatal("expected non-empty qr string and signature")
 	}
 
-	// 2. Edge Mode Setup (100% Offline Turnstile Gate - Only Public Key)
 	edgeCfg := &config.Config{
 		AppMode:       config.ModeEdge,
 		TenantID:      "park-central",
 		OutletID:      "gate-turnstile-01",
-		Ed25519PubKey: pubKey, // Notice: zero private key needed
+		Ed25519PubKey: pubKey,
 	}
 	edgeTicketUC := usecase.NewTicketUsecase(edgeCfg, txMgr, ticketRepo, outboxRepo, broadcaster)
 
-	// First scan: should pass offline
 	redemption, err := edgeTicketUC.RedeemTicketOffline(ctx, usecase.RedeemTicketRequest{
 		QRString: qrString,
 		TenantID: edgeCfg.TenantID,
@@ -324,7 +313,6 @@ func TestCryptographicOfflineTicketingAndRedemption(t *testing.T) {
 		t.Errorf("expected 2 pax redeemed, got %d", redemption.PaxRedeemed)
 	}
 
-	// Second scan (Double-Scan attempt): must be rejected immediately
 	_, err = edgeTicketUC.RedeemTicketOffline(ctx, usecase.RedeemTicketRequest{
 		QRString: qrString,
 		TenantID: edgeCfg.TenantID,
@@ -345,14 +333,13 @@ func TestSyncIngestor_PhysicalRealityWins(t *testing.T) {
 	orderRepo := repository.NewOrderRepository(txMgr)
 	ticketRepo := repository.NewTicketRepository(txMgr)
 
-	// Simulate incoming batch with an offline paid sale that forces negative stock
 	eventID := uid.NewV7()
 	stockMov := domain.StockMovementEvent{
 		ID:          uid.NewV7(),
 		TenantID:    "tenant-01",
 		OutletID:    "outlet-offline",
 		SKU:         "POPCORN_LARGE",
-		DeltaQty:    -10, // Deduct 10 when stock is 0
+		DeltaQty:    -10,
 		Reason:      "OFFLINE_PAID_SALE",
 		ReferenceID: "ord-offline-999",
 		CreatedAt:   time.Now().UTC(),
@@ -382,7 +369,6 @@ func TestSyncIngestor_PhysicalRealityWins(t *testing.T) {
 		t.Fatalf("IngestUpstreamBatch failed: %v", err)
 	}
 
-	// Physical Reality Wins: The batch must be ACCEPTED (ACKed) and flag a discrepancy notice
 	if len(resp.AckEventIDs) != 1 || resp.AckEventIDs[0] != eventID {
 		t.Fatalf("expected ACK for event %s, got %+v", eventID, resp.AckEventIDs)
 	}
@@ -391,7 +377,6 @@ func TestSyncIngestor_PhysicalRealityWins(t *testing.T) {
 		t.Fatal("expected STOCK_DISCREPANCY_ALERT for negative stock, got none")
 	}
 
-	// Check central stock is indeed negative (-10)
 	bal, err := catalogRepo.GetStock(ctx, "tenant-01", "outlet-offline", "POPCORN_LARGE")
 	if err != nil {
 		t.Fatalf("GetStock failed: %v", err)
