@@ -107,6 +107,8 @@ func main() {
 		defer syncWorker.Stop()
 	}
 
+	syncUC := usecase.NewSyncUsecase(txMgr, catalogRepo, orderRepo, ticketRepo)
+
 	healthChecker := database.NewDatabaseHealthChecker(db)
 	handler := deliveryHttp.NewHandler(
 		cfg,
@@ -116,12 +118,8 @@ func main() {
 		checkoutUC,
 		ticketUC,
 		shiftUC,
+		syncUC,
 		syncWorker,
-		txMgr,
-		catalogRepo,
-		orderRepo,
-		ticketRepo,
-		shiftRepo,
 	)
 
 	router := deliveryHttp.SetupRouter(handler, wsHub, cfg)

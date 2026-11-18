@@ -125,7 +125,11 @@ func (uc *CatalogUsecase) UpdateItem(ctx context.Context, id string, updated *do
 		existing.SectorTraits = updated.SectorTraits
 	}
 	existing.IsActive = updated.IsActive
-	existing.Version = time.Now().UTC().UnixNano()
+	nowNano := time.Now().UTC().UnixNano()
+	if nowNano <= existing.Version {
+		nowNano = existing.Version + 1
+	}
+	existing.Version = nowNano
 	existing.UpdatedAt = time.Now().UTC()
 
 	if err := uc.catalogRepo.UpsertItem(ctx, existing); err != nil {

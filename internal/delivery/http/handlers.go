@@ -26,12 +26,8 @@ type Handler struct {
 	checkoutUC    *usecase.CheckoutUsecase
 	ticketUC      *usecase.TicketUsecase
 	shiftUC       *usecase.ShiftUsecase
+	syncUC        *usecase.SyncUsecase
 	syncWorker    *usecase.SyncWorker
-	txMgr         domain.TransactionManager
-	catalogRepo   domain.CatalogRepository
-	orderRepo     domain.OrderRepository
-	ticketRepo    domain.TicketRepository
-	shiftRepo     domain.ShiftRepository
 }
 
 func NewHandler(
@@ -42,12 +38,8 @@ func NewHandler(
 	checkoutUC *usecase.CheckoutUsecase,
 	ticketUC *usecase.TicketUsecase,
 	shiftUC *usecase.ShiftUsecase,
+	syncUC *usecase.SyncUsecase,
 	syncWorker *usecase.SyncWorker,
-	txMgr domain.TransactionManager,
-	catalogRepo domain.CatalogRepository,
-	orderRepo domain.OrderRepository,
-	ticketRepo domain.TicketRepository,
-	shiftRepo domain.ShiftRepository,
 ) *Handler {
 	return &Handler{
 		cfg:           cfg,
@@ -57,12 +49,8 @@ func NewHandler(
 		checkoutUC:    checkoutUC,
 		ticketUC:      ticketUC,
 		shiftUC:       shiftUC,
+		syncUC:        syncUC,
 		syncWorker:    syncWorker,
-		txMgr:         txMgr,
-		catalogRepo:   catalogRepo,
-		orderRepo:     orderRepo,
-		ticketRepo:    ticketRepo,
-		shiftRepo:     shiftRepo,
 	}
 }
 
@@ -531,20 +519,18 @@ func (h *Handler) RedeemTicket(c *gin.Context) {
 }
 
 func (h *Handler) PushSync(c *gin.Context) {
+	if h.syncUC == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "sync usecase is not configured"})
+		return
+	}
+
 	var batch domain.SyncPushBatch
 	if err := c.ShouldBindJSON(&batch); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	resp, err := usecase.IngestUpstreamBatch(
-		c.Request.Context(),
-		h.txMgr,
-		h.catalogRepo,
-		h.orderRepo,
-		h.ticketRepo,
-		batch,
-	)
+	resp, err := h.syncUC.IngestUpstreamBatch(c.Request.Context(), batch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

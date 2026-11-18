@@ -602,42 +602,34 @@ func (r *OrderRepo) ChargeFolio(ctx context.Context, charge *domain.FolioCharge)
 }
 
 func (r *OrderRepo) VoidOrder(ctx context.Context, tenantID, orderID string, reason string) error {
-	order, err := r.GetOrderByID(ctx, orderID)
-	if err != nil {
-		return err
-	}
-	if order.TenantID != tenantID {
-		return domain.ErrOrderNotFound
-	}
-	if order.Status == domain.OrderStatusCancelled {
-		return fmt.Errorf("order is already cancelled/voided")
-	}
+	return r.txMgr.WithTransaction(ctx, func(txCtx context.Context) error {
+		order, err := r.GetOrderByID(txCtx, orderID)
+		if err != nil {
+			return err
+		}
+		if order.TenantID != tenantID {
+			return domain.ErrOrderNotFound
+		}
+		if order.Status == domain.OrderStatusCancelled {
+			return fmt.Errorf("order is already cancelled/voided")
+		}
 
-	now := time.Now().UTC()
-	voidNote := "VOID: " + reason
-	query := r.rebind(`
-		UPDATE orders
-		SET status = ?, notes = CASE WHEN notes IS NULL OR notes = '' THEN ? ELSE notes || ' | ' || ? END, updated_at = ?
-		WHERE id = ? AND tenant_id = ?
-	`)
-	_, err = r.exec(ctx).ExecContext(ctx, query, string(domain.OrderStatusCancelled), voidNote, voidNote, formatSQLTime(now), orderID, tenantID)
-	if err != nil {
-		return fmt.Errorf("failed to void order: %w", err)
-	}
+		now := time.Now().UTC()
+		voidNote := "VOID: " + reason
+		query := r.rebind(`
+			UPDATE orders
+			SET status = ?, notes = CASE WHEN notes IS NULL OR notes = '' THEN ? ELSE notes || ' | ' || ? END, updated_at = ?
+			WHERE id = ? AND tenant_id = ?
+		`)
+		if _, err := r.exec(txCtx).ExecContext(txCtx, query, string(domain.OrderStatusCancelled), voidNote, voidNote, formatSQLTime(now), orderID, tenantID); err != nil {
+			return fmt.Errorf("failed to void order: %w", err)
+		}
 
-	// Reverse stock movements
-	for _, it := range order.Items {
+		// Reverse stock movements
 		insertEventQ := r.rebind(`
 			INSERT INTO stock_movements (id, tenant_id, outlet_id, sku, delta_qty, reason, reference_id, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		`)
-		evtID := uid.NewV7()
-		_, _ = r.exec(ctx).ExecContext(
-			ctx, insertEventQ,
-			evtID, order.TenantID, order.OutletID, it.SKU, it.Quantity, "ORDER_VOID_REVERSAL", order.ID,
-			formatSQLTime(now),
-		)
-
 		var updateBalQ string
 		if r.txMgr.Driver() == "postgres" {
 			updateBalQ = `
@@ -656,10 +648,24 @@ func (r *OrderRepo) VoidOrder(ctx context.Context, tenantID, orderID string, rea
 					updated_at = excluded.updated_at
 			`
 		}
-		_, _ = r.exec(ctx).ExecContext(ctx, updateBalQ, order.TenantID, order.OutletID, it.SKU, it.Quantity, formatSQLTime(now))
-	}
 
-	return nil
+		for _, it := range order.Items {
+			evtID := uid.NewV7()
+			if _, err := r.exec(txCtx).ExecContext(
+				txCtx, insertEventQ,
+				evtID, order.TenantID, order.OutletID, it.SKU, it.Quantity, "ORDER_VOID_REVERSAL", order.ID,
+				formatSQLTime(now),
+			); err != nil {
+				return fmt.Errorf("failed to record void stock movement for %s: %w", it.SKU, err)
+			}
+
+			if _, err := r.exec(txCtx).ExecContext(txCtx, updateBalQ, order.TenantID, order.OutletID, it.SKU, it.Quantity, formatSQLTime(now)); err != nil {
+				return fmt.Errorf("failed to restore inventory balance for %s: %w", it.SKU, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *OrderRepo) ListFolios(ctx context.Context, tenantID string, openOnly bool, limit, offset int) ([]domain.GuestFolio, error) {

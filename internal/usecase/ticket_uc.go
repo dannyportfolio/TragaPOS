@@ -94,7 +94,9 @@ func (uc *TicketUsecase) IssueTicket(ctx context.Context, req IssueTicketRequest
 	}
 
 	if uc.ticketRepo != nil {
-		_ = uc.ticketRepo.SaveIssuedTicket(ctx, &payload, sig)
+		if err := uc.ticketRepo.SaveIssuedTicket(ctx, &payload, sig); err != nil {
+			return nil, "", fmt.Errorf("failed to persist issued ticket: %w", err)
+		}
 	}
 
 	jsonPayload, err := json.Marshal(payload)

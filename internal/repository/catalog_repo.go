@@ -26,6 +26,30 @@ func (r *CatalogRepo) rebind(q string) string {
 	return Rebind(r.txMgr.Driver(), q)
 }
 
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanItem(row rowScanner) (*domain.Item, error) {
+	var item domain.Item
+	var traitsStr string
+	var createdAtStr, updatedAtStr string
+
+	err := row.Scan(
+		&item.ID, &item.TenantID, &item.OutletID, &item.SKU, &item.Barcode,
+		&item.Name, &item.Sector, &item.BasePrice, &item.Currency, &item.TaxRate,
+		&traitsStr, &item.Version, &item.IsActive, &createdAtStr, &updatedAtStr,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	item.SectorTraits = []byte(traitsStr)
+	item.CreatedAt = parseSQLTime(createdAtStr)
+	item.UpdatedAt = parseSQLTime(updatedAtStr)
+	return &item, nil
+}
+
 func (r *CatalogRepo) GetByID(ctx context.Context, id string) (*domain.Item, error) {
 	query := r.rebind(`
 		SELECT id, tenant_id, outlet_id, sku, barcode, name, sector, base_price,
@@ -34,28 +58,14 @@ func (r *CatalogRepo) GetByID(ctx context.Context, id string) (*domain.Item, err
 		WHERE id = ?
 	`)
 
-	var item domain.Item
-	var traitsStr string
-	var createdAtStr, updatedAtStr string
-
-	row := r.exec(ctx).QueryRowContext(ctx, query, id)
-	err := row.Scan(
-		&item.ID, &item.TenantID, &item.OutletID, &item.SKU, &item.Barcode,
-		&item.Name, &item.Sector, &item.BasePrice, &item.Currency, &item.TaxRate,
-		&traitsStr, &item.Version, &item.IsActive, &createdAtStr, &updatedAtStr,
-	)
+	item, err := scanItem(r.exec(ctx).QueryRowContext(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrItemNotFound
 		}
 		return nil, fmt.Errorf("failed to get item by id: %w", err)
 	}
-
-	item.SectorTraits = []byte(traitsStr)
-	item.CreatedAt = parseSQLTime(createdAtStr)
-	item.UpdatedAt = parseSQLTime(updatedAtStr)
-
-	return &item, nil
+	return item, nil
 }
 
 func (r *CatalogRepo) GetBySKU(ctx context.Context, tenantID, sku string) (*domain.Item, error) {
@@ -66,28 +76,14 @@ func (r *CatalogRepo) GetBySKU(ctx context.Context, tenantID, sku string) (*doma
 		WHERE tenant_id = ? AND sku = ?
 	`)
 
-	var item domain.Item
-	var traitsStr string
-	var createdAtStr, updatedAtStr string
-
-	row := r.exec(ctx).QueryRowContext(ctx, query, tenantID, sku)
-	err := row.Scan(
-		&item.ID, &item.TenantID, &item.OutletID, &item.SKU, &item.Barcode,
-		&item.Name, &item.Sector, &item.BasePrice, &item.Currency, &item.TaxRate,
-		&traitsStr, &item.Version, &item.IsActive, &createdAtStr, &updatedAtStr,
-	)
+	item, err := scanItem(r.exec(ctx).QueryRowContext(ctx, query, tenantID, sku))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrItemNotFound
 		}
 		return nil, fmt.Errorf("failed to get item by sku: %w", err)
 	}
-
-	item.SectorTraits = []byte(traitsStr)
-	item.CreatedAt = parseSQLTime(createdAtStr)
-	item.UpdatedAt = parseSQLTime(updatedAtStr)
-
-	return &item, nil
+	return item, nil
 }
 
 func (r *CatalogRepo) GetByBarcode(ctx context.Context, tenantID, barcode string) (*domain.Item, error) {
@@ -98,28 +94,14 @@ func (r *CatalogRepo) GetByBarcode(ctx context.Context, tenantID, barcode string
 		WHERE tenant_id = ? AND barcode = ?
 	`)
 
-	var item domain.Item
-	var traitsStr string
-	var createdAtStr, updatedAtStr string
-
-	row := r.exec(ctx).QueryRowContext(ctx, query, tenantID, barcode)
-	err := row.Scan(
-		&item.ID, &item.TenantID, &item.OutletID, &item.SKU, &item.Barcode,
-		&item.Name, &item.Sector, &item.BasePrice, &item.Currency, &item.TaxRate,
-		&traitsStr, &item.Version, &item.IsActive, &createdAtStr, &updatedAtStr,
-	)
+	item, err := scanItem(r.exec(ctx).QueryRowContext(ctx, query, tenantID, barcode))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrItemNotFound
 		}
 		return nil, fmt.Errorf("failed to get item by barcode: %w", err)
 	}
-
-	item.SectorTraits = []byte(traitsStr)
-	item.CreatedAt = parseSQLTime(createdAtStr)
-	item.UpdatedAt = parseSQLTime(updatedAtStr)
-
-	return &item, nil
+	return item, nil
 }
 
 func (r *CatalogRepo) ListItems(ctx context.Context, tenantID string, limit, offset int) ([]domain.Item, error) {

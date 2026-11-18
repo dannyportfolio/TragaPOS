@@ -214,6 +214,32 @@ func (w *SyncWorker) PullCatalogDelta(ctx context.Context) error {
 	return nil
 }
 
+// SyncUsecase handles upstream synchronization batch ingestion on Cloud/Hub nodes.
+type SyncUsecase struct {
+	txMgr       domain.TransactionManager
+	catalogRepo domain.CatalogRepository
+	orderRepo   domain.OrderRepository
+	ticketRepo  domain.TicketRepository
+}
+
+func NewSyncUsecase(
+	txMgr domain.TransactionManager,
+	catalogRepo domain.CatalogRepository,
+	orderRepo domain.OrderRepository,
+	ticketRepo domain.TicketRepository,
+) *SyncUsecase {
+	return &SyncUsecase{
+		txMgr:       txMgr,
+		catalogRepo: catalogRepo,
+		orderRepo:   orderRepo,
+		ticketRepo:  ticketRepo,
+	}
+}
+
+func (uc *SyncUsecase) IngestUpstreamBatch(ctx context.Context, batch domain.SyncPushBatch) (*domain.SyncPushResponse, error) {
+	return IngestUpstreamBatch(ctx, uc.txMgr, uc.catalogRepo, uc.orderRepo, uc.ticketRepo, batch)
+}
+
 func IngestUpstreamBatch(
 	ctx context.Context,
 	txMgr domain.TransactionManager,
