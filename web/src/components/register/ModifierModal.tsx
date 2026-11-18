@@ -19,7 +19,6 @@ export const ModifierModal: React.FC<ModifierModalProps> = ({
 
   if (!isOpen || !item) return null;
 
-  // Extract modifiers from sector traits if present, otherwise default common modifiers
   const availableModifiers: ItemModifierOption[] =
     item.sector_traits?.modifiers || [
       { name: 'Extra Shot', price_delta: 5000 },
@@ -49,48 +48,51 @@ export const ModifierModal: React.FC<ModifierModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-slate-100 text-sm">Customize: {item.name}</h3>
-            <p className="text-xs text-slate-400">Select recipe modifiers & variants</p>
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">Customize: {item.name}</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Select recipe modifiers &amp; variants</p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors"
+            aria-label="Close modal"
+            className="min-w-[40px] min-h-[40px] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
           <div className="space-y-2">
             {availableModifiers.map((mod) => {
               const isSelected = selectedMods.some((m) => m.name === mod.name);
               return (
                 <button
                   key={mod.name}
+                  type="button"
                   onClick={() => toggleModifier(mod)}
-                  className={`w-full p-3 rounded-xl border flex items-center justify-between text-xs transition-colors ${
+                  className={`w-full min-h-[44px] p-3 rounded-xl border flex items-center justify-between text-xs transition-colors ${
                     isSelected
-                      ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-200'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                      ? 'bg-indigo-50 dark:bg-indigo-600/15 border-indigo-400 dark:border-indigo-500/50 text-indigo-950 dark:text-indigo-200'
+                      : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <div
                       className={`w-4 h-4 rounded border flex items-center justify-center ${
                         isSelected
-                          ? 'bg-indigo-600 border-indigo-500 text-white'
-                          : 'border-slate-700 bg-slate-900'
+                          ? 'bg-indigo-600 border-indigo-600 text-white'
+                          : 'border-slate-400 dark:border-slate-700 bg-white dark:bg-slate-900'
                       }`}
                     >
                       {isSelected && <Check className="w-3 h-3" />}
                     </div>
-                    <span className="font-medium">{mod.name}</span>
+                    <span className="font-semibold">{mod.name}</span>
                   </div>
-                  <span className="font-mono text-slate-400">
+                  <span className="font-mono text-slate-600 dark:text-slate-400">
                     {mod.price_delta > 0 ? `+${formatIDR(mod.price_delta)}` : 'Free'}
                   </span>
                 </button>
@@ -98,24 +100,26 @@ export const ModifierModal: React.FC<ModifierModalProps> = ({
             })}
           </div>
 
-          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center text-xs">
-            <span className="text-slate-400">Updated Price:</span>
-            <span className="font-mono font-bold text-slate-100 text-sm">{formatIDR(finalUnitPrice)}</span>
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs">
+            <span className="text-slate-600 dark:text-slate-400 font-medium">Updated Price:</span>
+            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">{formatIDR(finalUnitPrice)}</span>
           </div>
 
           <div className="flex gap-2 pt-2">
             <button
+              type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
+              className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 font-semibold text-xs transition-colors"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={() => {
                 onConfirm(item, selectedMods);
                 onClose();
               }}
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-lg shadow-indigo-600/20"
+              className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-indigo-600/20"
             >
               Add to Cart
             </button>

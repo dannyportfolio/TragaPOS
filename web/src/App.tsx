@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, ShoppingCart, ArrowRight } from 'lucide-react';
 import { Header, AppView } from './components/layout/Header';
 import { CatalogGrid } from './components/register/CatalogGrid';
 import { CartDrawer } from './components/cart/CartDrawer';
@@ -23,7 +23,7 @@ import { api } from './services/api';
 
 export const App: React.FC = () => {
   const { shift, fetchShift } = useShiftStore();
-  const { items: cartItems, addItem, notes, clearCart, heldOrderId } = useCartStore();
+  const { items: cartItems, addItem, notes, clearCart, heldOrderId, getTotalAmount } = useCartStore();
 
   const [activeView, setActiveView] = useState<AppView>('POS');
   const [catalogItems, setCatalogItems] = useState<Item[]>([]);
@@ -46,6 +46,13 @@ export const App: React.FC = () => {
   const [isHolding, setIsHolding] = useState(false);
 
   const totalCartCount = cartItems.reduce((sum, ci) => sum + ci.quantity, 0);
+  const totalCartAmount = getTotalAmount();
+  const formatIDR = (val: number) =>
+    new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(val);
 
   const loadCatalog = async () => {
     setIsLoadingCatalog(true);
@@ -173,7 +180,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-dvh w-full max-w-full overflow-hidden bg-slate-950 font-sans">
+    <div className="flex flex-col h-dvh w-full max-w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors">
       {/* Top Header */}
       <Header
         activeView={activeView}
@@ -194,6 +201,7 @@ export const App: React.FC = () => {
               onSelectItem={handleSelectItem}
               onBarcodeScan={handleBarcodeScan}
               isLoading={isLoadingCatalog}
+              hasMobileCartBar={totalCartCount > 0}
             />
 
             {/* Desktop Persistent Cart */}
@@ -205,14 +213,44 @@ export const App: React.FC = () => {
               />
             </div>
 
+            {/* Sticky Mobile Cart Bar (< lg) */}
+            {totalCartCount > 0 && !isMobileCartOpen && (
+              <div className="lg:hidden fixed bottom-3 inset-x-3 z-30">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileCartOpen(true)}
+                  className="w-full min-h-[52px] px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-between gap-3 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
+                      <ShoppingCart className="w-4 h-4" />
+                    </span>
+                    <div className="text-left">
+                      <div className="text-xs font-bold leading-tight">
+                        {totalCartCount} {totalCartCount === 1 ? 'item' : 'items'} in cart
+                      </div>
+                      <div className="text-[11px] text-indigo-100 font-mono">
+                        {formatIDR(totalCartAmount)}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-1 text-xs font-bold bg-white text-indigo-700 px-3 py-1.5 rounded-xl">
+                    Review & Pay
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Mobile/Tablet Slide-Over Cart */}
             {isMobileCartOpen && (
-              <div className="lg:hidden fixed inset-0 z-40 bg-slate-950/75 backdrop-blur-sm flex justify-end">
-                <div className="relative h-full w-full max-w-sm bg-slate-900 flex flex-col shadow-2xl">
+              <div className="lg:hidden fixed inset-0 z-40 bg-slate-950/60 dark:bg-slate-950/75 backdrop-blur-sm flex justify-end">
+                <div className="relative h-full w-full max-w-sm bg-white dark:bg-slate-900 flex flex-col shadow-2xl">
                   <button
+                    type="button"
                     onClick={() => setIsMobileCartOpen(false)}
                     aria-label="Close cart"
-                    className="absolute top-3 right-3 z-10 min-w-[36px] min-h-[36px] rounded-lg bg-slate-800 text-slate-300 flex items-center justify-center"
+                    className="absolute top-3 right-3 z-10 min-w-[40px] min-h-[40px] rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center"
                   >
                     <X className="w-4 h-4" />
                   </button>

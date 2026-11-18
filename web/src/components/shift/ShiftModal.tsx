@@ -15,13 +15,11 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose }) => {
   const [openingFloat, setOpeningFloat] = useState(100000);
   const [cashierName, setCashierName] = useState('Cashier 1');
 
-  // Movement Form
   const [showMovementForm, setShowMovementForm] = useState(false);
   const [movementType, setMovementType] = useState<CashMovementType>('CASH_IN');
   const [movementAmount, setMovementAmount] = useState(50000);
   const [movementReason, setMovementReason] = useState('');
 
-  // Close Shift Form
   const [showCloseForm, setShowCloseForm] = useState(false);
   const [actualCash, setActualCash] = useState(0);
   const [closeNotes, setCloseNotes] = useState('');
@@ -76,74 +74,75 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-xl max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 flex items-center justify-center">
               <KeyRound className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-100 text-sm">Cash Drawer & Shift Session</h3>
-              <p className="text-xs text-slate-400">Front-of-house cash balancing and shift audit</p>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">Cash Drawer &amp; Shift Session</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">Front-of-house cash balancing and shift audit</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors"
+            aria-label="Close modal"
+            className="min-w-[40px] min-h-[40px] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-5 sm:p-6 overflow-y-auto">
           {summaryResult ? (
-            /* Z-Report Summary after close */
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                <h4 className="font-bold text-slate-100 text-base">Shift Closed Successfully (Z-Report)</h4>
-                <p className="text-xs text-slate-400">Cash drawer reconciled and archived</p>
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-2" />
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">Shift Closed Successfully (Z-Report)</h4>
+                <p className="text-xs text-slate-600 dark:text-slate-400">Cash drawer reconciled and archived</p>
               </div>
 
-              <div className="bg-slate-950 rounded-xl p-4 border border-slate-800 space-y-2 text-xs font-mono">
-                <div className="flex justify-between text-slate-300">
+              <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-2 text-xs font-mono">
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
                   <span>Opening Float:</span>
                   <span>{formatIDR(summaryResult.opening_float)}</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
                   <span>Cash In (Pay-ins):</span>
                   <span>+{formatIDR(summaryResult.cash_in_total)}</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
                   <span>Cash Out (Drops):</span>
                   <span>-{formatIDR(summaryResult.cash_out_total)}</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
                   <span>Cash Sales:</span>
                   <span>+{formatIDR(summaryResult.cash_sales_total)}</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-slate-700 dark:text-slate-300">
                   <span>Non-Cash Sales (QRIS/Card):</span>
                   <span>+{formatIDR(summaryResult.non_cash_sales_total)}</span>
                 </div>
-                <div className="border-t border-slate-800 pt-2 flex justify-between font-bold text-slate-100">
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex justify-between font-bold text-slate-900 dark:text-slate-100">
                   <span>SYSTEM EXPECTED CASH:</span>
                   <span>{formatIDR(summaryResult.expected_cash)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-slate-100">
+                <div className="flex justify-between font-bold text-slate-900 dark:text-slate-100">
                   <span>ACTUAL COUNTED CASH:</span>
                   <span>{formatIDR(summaryResult.actual_cash)}</span>
                 </div>
                 <div
-                  className={`border-t border-slate-800 pt-2 flex justify-between font-bold ${
+                  className={`border-t border-slate-200 dark:border-slate-800 pt-2 flex justify-between font-bold ${
                     summaryResult.variance === 0
-                      ? 'text-emerald-400'
+                      ? 'text-emerald-700 dark:text-emerald-400'
                       : summaryResult.variance > 0
-                      ? 'text-sky-400'
-                      : 'text-rose-400'
+                      ? 'text-sky-700 dark:text-sky-400'
+                      : 'text-rose-700 dark:text-rose-400'
                   }`}
                 >
                   <span>CASH DISCREPANCY (OVER/SHORT):</span>
@@ -152,54 +151,54 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose }) => {
               </div>
 
               <button
+                type="button"
                 onClick={() => {
                   setSummaryResult(null);
                   onClose();
                 }}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium text-xs transition-colors"
+                className="w-full min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold text-xs transition-colors"
               >
                 Done
               </button>
             </div>
           ) : !shift ? (
-            /* Open Shift Screen */
             <form onSubmit={handleOpenShift} className="space-y-4">
-              <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                 Before starting sales, declare the initial cash float placed in the register drawer.
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Cashier Name / ID</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Cashier Name / ID</label>
                 <input
                   type="text"
                   value={cashierName}
                   onChange={(e) => setCashierName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Opening Float Amount (IDR)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Opening Float Amount (IDR)</label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-xs text-slate-500 font-bold">Rp</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400 font-bold">Rp</span>
                   <input
                     type="number"
                     value={openingFloat}
                     onChange={(e) => setOpeningFloat(Number(e.target.value))}
                     min={0}
                     step={1000}
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-mono"
                     required
                   />
                 </div>
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2">
                   {[50000, 100000, 200000, 500000].map((amt) => (
                     <button
                       key={amt}
                       type="button"
                       onClick={() => setOpeningFloat(amt)}
-                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 transition-colors font-mono"
+                      className="min-h-[36px] px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition-colors font-mono"
                     >
                       {formatIDR(amt)}
                     </button>
@@ -210,51 +209,50 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose }) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50 mt-2"
+                className="w-full min-h-[44px] py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50 mt-2"
               >
                 {isLoading ? 'Opening Shift...' : 'Open Register Shift'}
               </button>
             </form>
           ) : showCloseForm ? (
-            /* Close Shift Screen */
             <form onSubmit={handleCloseShift} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-2.5">
+              <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
                   Please count all physical cash inside the register drawer and enter the actual total amount.
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1.5">
-                <div className="flex justify-between text-slate-400">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>System Expected Cash:</span>
-                  <span className="font-mono text-slate-200 font-semibold">{formatIDR(shift.expected_cash)}</span>
+                  <span className="font-mono text-slate-900 dark:text-slate-200 font-semibold">{formatIDR(shift.expected_cash)}</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Counted Actual Cash (IDR)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Counted Actual Cash (IDR)</label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-xs text-slate-500 font-bold">Rp</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400 font-bold">Rp</span>
                   <input
                     type="number"
                     value={actualCash}
                     onChange={(e) => setActualCash(Number(e.target.value))}
                     min={0}
                     step={1000}
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-mono"
+                    className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-mono"
                     required
                   />
                 </div>
                 <div className="mt-2 text-xs flex justify-between font-mono">
-                  <span className="text-slate-400">Projected Variance:</span>
+                  <span className="text-slate-600 dark:text-slate-400">Projected Variance:</span>
                   <span
                     className={
                       actualCash - shift.expected_cash === 0
-                        ? 'text-emerald-400'
+                        ? 'text-emerald-700 dark:text-emerald-400 font-semibold'
                         : actualCash - shift.expected_cash > 0
-                        ? 'text-sky-400'
-                        : 'text-rose-400'
+                        ? 'text-sky-700 dark:text-sky-400 font-semibold'
+                        : 'text-rose-700 dark:text-rose-400 font-semibold'
                     }
                   >
                     {formatIDR(actualCash - shift.expected_cash)}
@@ -263,13 +261,13 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Notes (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Notes (Optional)</label>
                 <input
                   type="text"
                   value={closeNotes}
                   onChange={(e) => setCloseNotes(e.target.value)}
                   placeholder="e.g. End of morning shift"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -277,68 +275,67 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose }) => {
                 <button
                   type="button"
                   onClick={() => setShowCloseForm(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
+                  className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 font-semibold text-xs transition-colors"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs transition-colors shadow-lg shadow-rose-600/20 disabled:opacity-50"
+                  className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 dark:hover:bg-rose-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-rose-600/20 disabled:opacity-50"
                 >
-                  Confirm & Close Shift
+                  Confirm &amp; Close Shift
                 </button>
               </div>
             </form>
           ) : showMovementForm ? (
-            /* Cash Movement Form (Cash In / Drop) */
             <form onSubmit={handleRecordMovement} className="space-y-4">
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setMovementType('CASH_IN')}
-                  className={`flex-1 py-2 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 ${
+                  className={`min-h-[44px] py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 ${
                     movementType === 'CASH_IN'
-                      ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-400 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
+                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  <ArrowDownLeft className="w-3.5 h-3.5" /> Cash In (Pay-In)
+                  <ArrowDownLeft className="w-4 h-4" /> Cash In (Pay-In)
                 </button>
                 <button
                   type="button"
                   onClick={() => setMovementType('CASH_OUT')}
-                  className={`flex-1 py-2 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 ${
+                  className={`min-h-[44px] py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 ${
                     movementType === 'CASH_OUT'
-                      ? 'bg-rose-500/10 border-rose-500/40 text-rose-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-400'
+                      ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-400 dark:border-rose-500/40 text-rose-800 dark:text-rose-300'
+                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  <ArrowUpRight className="w-3.5 h-3.5" /> Cash Out (Drop / Expense)
+                  <ArrowUpRight className="w-4 h-4" /> Cash Out (Drop / Expense)
                 </button>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Amount (IDR)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Amount (IDR)</label>
                 <input
                   type="number"
                   value={movementAmount}
                   onChange={(e) => setMovementAmount(Number(e.target.value))}
                   min={1000}
                   step={1000}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-mono"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 font-mono"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Reason / Note</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reason / Note</label>
                 <input
                   type="text"
                   value={movementReason}
                   onChange={(e) => setMovementReason(e.target.value)}
                   placeholder="e.g. Change replenishment, petty cash coffee supplies"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-indigo-500"
                   required
                 />
               </div>
@@ -347,79 +344,80 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose }) => {
                 <button
                   type="button"
                   onClick={() => setShowMovementForm(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors"
+                  className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 font-semibold text-xs transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition-colors shadow-lg shadow-indigo-600/20"
+                  className="flex-1 min-h-[44px] py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-indigo-600/20"
                 >
                   Save Cash Movement
                 </button>
               </div>
             </form>
           ) : (
-            /* Active Shift Overview */
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
-                  <div className="text-[11px] text-slate-400">Cashier</div>
-                  <div className="text-sm font-semibold text-slate-100 mt-0.5">{shift.cashier_name}</div>
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">Cashier</div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 mt-0.5">{shift.cashier_name}</div>
                 </div>
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
-                  <div className="text-[11px] text-slate-400">Started At</div>
-                  <div className="text-xs font-semibold text-slate-100 mt-0.5 font-mono">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400">Started At</div>
+                  <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 mt-0.5 font-mono">
                     {new Date(shift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
-                <div className="flex justify-between text-slate-400">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>Opening Float:</span>
-                  <span className="font-mono text-slate-200">{formatIDR(shift.opening_float)}</span>
+                  <span className="font-mono text-slate-900 dark:text-slate-200">{formatIDR(shift.opening_float)}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>Cash In Total:</span>
-                  <span className="font-mono text-emerald-400">+{formatIDR(shift.cash_in_total)}</span>
+                  <span className="font-mono text-emerald-700 dark:text-emerald-400">+{formatIDR(shift.cash_in_total)}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>Cash Out Total:</span>
-                  <span className="font-mono text-rose-400">-{formatIDR(shift.cash_out_total)}</span>
+                  <span className="font-mono text-rose-700 dark:text-rose-400">-{formatIDR(shift.cash_out_total)}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>Cash Sales:</span>
-                  <span className="font-mono text-emerald-400">+{formatIDR(shift.cash_sales_total)}</span>
+                  <span className="font-mono text-emerald-700 dark:text-emerald-400">+{formatIDR(shift.cash_sales_total)}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
                   <span>Non-Cash Sales (QRIS/Card):</span>
-                  <span className="font-mono text-slate-200">+{formatIDR(shift.non_cash_sales_total)}</span>
+                  <span className="font-mono text-slate-900 dark:text-slate-200">+{formatIDR(shift.non_cash_sales_total)}</span>
                 </div>
-                <div className="border-t border-slate-800 pt-2 flex justify-between font-bold text-slate-100">
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex justify-between font-bold text-slate-900 dark:text-slate-100">
                   <span className="flex items-center gap-1.5">
-                    <Calculator className="w-3.5 h-3.5 text-indigo-400" />
+                    <Calculator className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                     EXPECTED DRAWER CASH:
                   </span>
-                  <span className="text-indigo-300 font-mono text-sm">{formatIDR(shift.expected_cash)}</span>
+                  <span className="text-indigo-700 dark:text-indigo-300 font-mono text-sm">{formatIDR(shift.expected_cash)}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={() => setShowMovementForm(true)}
-                  className="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 text-slate-200 border border-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                  className="min-h-[44px] py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
                 >
-                  <DollarSign className="w-3.5 h-3.5 text-indigo-400" />
+                  <DollarSign className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   Cash In / Out
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setActualCash(shift.expected_cash);
                     setShowCloseForm(true);
                   }}
-                  className="py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                  className="min-h-[44px] py-2.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
                 >
                   Close Shift (Z-Report)
                 </button>

@@ -54,65 +54,68 @@ export const HeldOrdersModal: React.FC<HeldOrdersModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center">
               <PauseCircle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-semibold text-slate-100 text-sm">Parked / Held Orders</h3>
-              <p className="text-xs text-slate-400">Restore parked carts back into register</p>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">Parked / Held Orders</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">Restore parked carts back into register</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors"
+            aria-label="Close modal"
+            className="min-w-[40px] min-h-[40px] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 max-h-96 overflow-y-auto space-y-3">
+        <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-3">
           {isLoading ? (
-            <div className="h-32 flex items-center justify-center text-slate-500 text-xs">
+            <div className="h-32 flex items-center justify-center text-slate-600 dark:text-slate-400 text-xs">
               Loading parked orders...
             </div>
           ) : heldOrders.length === 0 ? (
-            <div className="h-32 flex flex-col items-center justify-center text-slate-500 text-xs text-center border-2 border-dashed border-slate-800 rounded-xl p-4">
-              <PauseCircle className="w-6 h-6 text-slate-600 mb-1" />
-              <p className="font-medium text-slate-400">No parked orders</p>
-              <p className="text-[11px] text-slate-600">Active cart can be parked anytime</p>
+            <div className="h-32 flex flex-col items-center justify-center text-slate-600 dark:text-slate-400 text-xs text-center border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-xl p-4">
+              <PauseCircle className="w-6 h-6 text-slate-400 dark:text-slate-600 mb-1" />
+              <p className="font-semibold text-slate-800 dark:text-slate-300">No parked orders</p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">Active cart can be parked anytime</p>
             </div>
           ) : (
             heldOrders.map((order) => (
               <div
                 key={order.id}
-                className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3"
+                className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3"
               >
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-xs text-slate-100">
+                    <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100">
                       {order.order_number}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 font-mono">
                       {order.items?.length || 0} items
                     </span>
                   </div>
                   {order.notes && (
-                    <p className="text-xs text-amber-300/90 mt-1 italic">"{order.notes}"</p>
+                    <p className="text-xs text-amber-800 dark:text-amber-300/90 mt-1 italic truncate">"{order.notes}"</p>
                   )}
-                  <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-1 font-mono">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1 font-mono">
                     <Clock className="w-3 h-3" />
                     {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    <span className="ml-2 font-bold text-slate-300">{formatIDR(order.total_amount)}</span>
+                    <span className="ml-2 font-bold text-slate-900 dark:text-slate-200">{formatIDR(order.total_amount)}</span>
                   </div>
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => handleResume(order)}
-                  className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-medium flex items-center gap-1.5 transition-all shadow-sm"
+                  className="min-h-[40px] px-3.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-600 text-indigo-700 dark:text-indigo-300 hover:text-white border border-indigo-200 dark:border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
                 >
                   <PlayCircle className="w-4 h-4" />
                   <span>Resume</span>
